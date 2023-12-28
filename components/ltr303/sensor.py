@@ -5,6 +5,7 @@ from esphome.const import (
     CONF_ID,
     CONF_INTEGRATION_TIME,
     CONF_REPEAT,
+    CONF_GLASS_ATTENUATION_FACTOR,
     CONF_GAIN,
     CONF_ACTUAL_GAIN,
     CONF_CALCULATED_LUX,
@@ -16,7 +17,7 @@ from esphome.const import (
     STATE_CLASS_MEASUREMENT
 )
 
-UNIT_COUNTS = "#"
+UNIT_COUNTS = "counts"
 
 CODEOWNERS = ["@latonita"]
 DEPENDENCIES = ["i2c"]
@@ -67,6 +68,13 @@ def validate_repeat_rate(value):
     value = cv.positive_time_period_milliseconds(value).total_milliseconds
     return cv.enum(MEASUREMENT_REPEAT_RATES, int=True)(value)
 
+def validate_time_and_repeat_rate(config):
+    integraton_time = config[CONF_INTEGRATION_TIME]
+    repeat_rate = config[CONF_REPEAT]
+    if (integraton_time > repeat_rate):
+        raise cv.Invalid(f"Measurement repeat rate ({repeat_rate}ms) shall be greater or equal to integration time ({integraton_time}ms)")
+    return config
+
 CONFIG_SCHEMA = cv.All(
     cv.Schema(
         {
@@ -75,12 +83,14 @@ CONFIG_SCHEMA = cv.All(
                 unit_of_measurement=UNIT_COUNTS,
                 icon=ICON_BRIGHTNESS_6,
                 accuracy_decimals=0,
+                device_class=DEVICE_CLASS_ILLUMINANCE,
                 state_class=STATE_CLASS_MEASUREMENT,
             ),
             cv.Optional(CONF_FULL_SPECTRUM): sensor.sensor_schema(
                 unit_of_measurement=UNIT_COUNTS,
                 icon=ICON_BRIGHTNESS_6,
                 accuracy_decimals=0,
+                device_class=DEVICE_CLASS_ILLUMINANCE,
                 state_class=STATE_CLASS_MEASUREMENT,
             ),
             cv.Optional(CONF_ACTUAL_GAIN): sensor.sensor_schema(
@@ -94,15 +104,18 @@ CONFIG_SCHEMA = cv.All(
                 icon=ICON_BRIGHTNESS_6,
                 accuracy_decimals=1,
                 device_class=DEVICE_CLASS_ILLUMINANCE,
+                state_class=STATE_CLASS_MEASUREMENT,
             ),
             cv.Optional(CONF_GAIN, default="X1"): cv.enum(GAINS),
             cv.Optional(CONF_INTEGRATION_TIME, default="100ms"): validate_integration_time,
             cv.Optional(CONF_REPEAT, default="500ms"): validate_repeat_rate,
+            cv.Optional(CONF_GLASS_ATTENUATION_FACTOR, default=1.0): cv.float_range(min = 1.0),
         }
     )
     .extend(cv.polling_component_schema("60s"))
     .extend(i2c.i2c_device_schema(0x29)),
     cv.has_at_least_one_key(CONF_INFRARED, CONF_FULL_SPECTRUM, CONF_CALCULATED_LUX, CONF_ACTUAL_GAIN),
+    validate_time_and_repeat_rate,
 )
 
 async def to_code(config):
@@ -133,10 +146,4 @@ async def to_code(config):
     cg.add(var.set_gain_value(config[CONF_GAIN]))
     cg.add(var.set_integration_time_value(config[CONF_INTEGRATION_TIME]))
     cg.add(var.set_repeat_rate_value(config[CONF_REPEAT]))
-    
-    integraton = config[CONF_INTEGRATION_TIME]
-    repeat = config[CONF_REPEAT]
-
-    if (integraton > repeat):
-        raise cv.Invalid(f"Measurement repeat rate ({repeat}ms) shall be greater or equal to integration time ({integraton}ms)")
-
+    cg.add(var.set_attenuation_factor(config[CONF_GLASS_ATTENUATION_FACTOR]))

@@ -27,6 +27,7 @@ sensor:
     gain: X8
     integration_time: 100ms
     repeat: 500ms
+    glass_attenuation_factor: 1.0
     infrared:
       name: "Infrared"
     full_spectrum:
