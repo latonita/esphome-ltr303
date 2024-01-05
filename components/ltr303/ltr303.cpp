@@ -101,7 +101,7 @@ bool LTR303Component::read_sensor_data_() {
     delay(5);
   }
 
-  if (!status.data_valid) {
+  if (status.data_invalid) {
     ESP_LOGW(TAG, "Data available but not valid");
     return false;
   }
@@ -114,8 +114,9 @@ bool LTR303Component::read_sensor_data_() {
 
   this->channel1 = (ch1_1 << 8) | ch1_0;
   this->channel0 = (ch0_1 << 8) | ch0_0;
+  this->channel_diff = (this->channel0 > this->channel1) ? this->channel0 - this->channel1 : 0;
 
-  ESP_LOGD(TAG, "Channel data CH1 = %d, CH0 = %d", this->channel1, this->channel0);
+  ESP_LOGD(TAG, "Channel data CH1 = %d, CH0 = %d, diff = %d", this->channel1, this->channel0, this->channel_diff);
 
   uint8_t actual_gain = status.gain;
   if (actual_gain != this->gain_) {
@@ -128,6 +129,10 @@ bool LTR303Component::read_sensor_data_() {
 
   if (this->full_spectrum_sensor_ != nullptr) {
     this->full_spectrum_sensor_->publish_state(this->channel0);
+  }
+
+  if (this->visible_sensor_ != nullptr) {
+    this->visible_sensor_->publish_state(this->channel_diff);
   }
 
   if (this->actual_gain_sensor_ != nullptr) {

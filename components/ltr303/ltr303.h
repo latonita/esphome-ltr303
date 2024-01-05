@@ -67,7 +67,7 @@ union StatusRegister {
     bool new_data : 1;
     bool reserved_3 : 1;
     uint8_t gain : 3;
-    bool data_valid : 1;
+    bool data_invalid : 1;
   };
 };
 #pragma pack(0)
@@ -116,6 +116,7 @@ class LTR303Component : public PollingComponent, public i2c::I2CDevice {
 
   void set_infrared_sensor(sensor::Sensor *sensor) { this->infrared_sensor_ = sensor; }
   void set_full_spectrum_sensor(sensor::Sensor *sensor) { this->full_spectrum_sensor_ = sensor; }
+  void set_visible_sensor(sensor::Sensor *sensor) { this->visible_sensor_ = sensor; }
   void set_actual_gain_sensor(sensor::Sensor *sensor) { this->actual_gain_sensor_ = sensor; }
   void set_calculated_lux_sensor(sensor::Sensor *sensor) { this->calculated_lux_sensor_ = sensor; }
 
@@ -132,6 +133,7 @@ class LTR303Component : public PollingComponent, public i2c::I2CDevice {
 
   uint16_t channel0{0};
   uint16_t channel1{0};
+  uint16_t channel_diff{0};
   float lux{0};
 
   LTR303Gain gain_{LTR303_GAIN_1};
@@ -141,6 +143,7 @@ class LTR303Component : public PollingComponent, public i2c::I2CDevice {
 
   sensor::Sensor *infrared_sensor_{nullptr};        // direct reading CH1, infrared only
   sensor::Sensor *full_spectrum_sensor_{nullptr};   // direct reading CH0, infrared + visible light
+  sensor::Sensor *visible_sensor_{nullptr};         // = CH0 - CH1
   sensor::Sensor *actual_gain_sensor_{nullptr};     // actual gain of reading
   sensor::Sensor *calculated_lux_sensor_{nullptr};  // calculated lux
 

@@ -11,13 +11,14 @@ from esphome.const import (
     CONF_CALCULATED_LUX,
     CONF_FULL_SPECTRUM,
     CONF_INFRARED,
+    CONF_VISIBLE,
     UNIT_LUX,
     ICON_BRIGHTNESS_6,
     DEVICE_CLASS_ILLUMINANCE,
     STATE_CLASS_MEASUREMENT
 )
 
-UNIT_COUNTS = "counts"
+UNIT_COUNTS = "#"
 
 CODEOWNERS = ["@latonita"]
 DEPENDENCIES = ["i2c"]
@@ -93,6 +94,13 @@ CONFIG_SCHEMA = cv.All(
                 device_class=DEVICE_CLASS_ILLUMINANCE,
                 state_class=STATE_CLASS_MEASUREMENT,
             ),
+            cv.Optional(CONF_VISIBLE): sensor.sensor_schema(
+                unit_of_measurement=UNIT_COUNTS,
+                icon=ICON_BRIGHTNESS_6,
+                accuracy_decimals=0,
+                device_class=DEVICE_CLASS_ILLUMINANCE,
+                state_class=STATE_CLASS_MEASUREMENT,
+            ),
             cv.Optional(CONF_ACTUAL_GAIN): sensor.sensor_schema(
                 icon=ICON_BRIGHTNESS_6,
                 accuracy_decimals=0,
@@ -132,6 +140,11 @@ async def to_code(config):
         conf = config[CONF_FULL_SPECTRUM]
         sens = await sensor.new_sensor(conf)
         cg.add(var.set_full_spectrum_sensor(sens))
+
+    if CONF_VISIBLE in config:
+        conf = config[CONF_VISIBLE]
+        sens = await sensor.new_sensor(conf)
+        cg.add(var.set_visible_sensor(sens))
 
     if CONF_ACTUAL_GAIN in config:
         conf = config[CONF_ACTUAL_GAIN]
