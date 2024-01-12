@@ -19,6 +19,8 @@ logger:
 external_components:
   - source: github://latonita/esphome-ltr303
     components: [ ltr303 ]
+#   - source: github://pr#6076
+#     components: [ltr303]
 
 i2c:
   sda: GPIO25
@@ -28,16 +30,21 @@ i2c:
 sensor:
   - platform: ltr303
     address: 0x29
+    auto_mode: true
+# gain and time ignored in auto mode
     gain: X8
     integration_time: 100ms
-    repeat: 500ms
+
     glass_attenuation_factor: 1.0
-    infrared:
-      name: "Infrared"
-    full_spectrum:
-      name: "Visible and Infrared"
+    ambient_light:
+      name: "Ambient light"
+# Following sensors are not really of a lot of use, to be honest :)
+    full_spectrum_counts:
+      name: "Full spectrum counts"
+    infrared_counts:
+      name: "Infrared counts"
     actual_gain:
       name: "Actual gain"
-    calculated_lux:
-      name: "Calculated lux"
+    actual_integration_time:
+      name: "Actual integration time"
 ```
