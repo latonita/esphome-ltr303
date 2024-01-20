@@ -65,7 +65,8 @@ void LTR303Component::setup() {
 
 void LTR303Component::dump_config() {
   LOG_I2C_DEVICE(this);
-  ESP_LOGCONFIG(TAG, "  Gain: %dx", get_gain_coeff(this->gain_));
+  ESP_LOGCONFIG(TAG, "  Automatic mode: %s", ONOFF(this->automatic_mode_enabled_));
+  ESP_LOGCONFIG(TAG, "  Gain: %.0fx", get_gain_coeff(this->gain_));
   ESP_LOGCONFIG(TAG, "  Integration time: %d ms", get_itime_ms(this->integration_time_));
   ESP_LOGCONFIG(TAG, "  Measurement repeat rate: %d ms", get_meas_time_ms(this->repeat_rate_));
   ESP_LOGCONFIG(TAG, "  Glass attenuation factor: %f", this->glass_attenuation_factor_);
@@ -84,9 +85,9 @@ void LTR303Component::dump_config() {
 void LTR303Component::update() {
   ESP_LOGD(TAG, "Updating");
   if (this->is_ready() && this->state_ == State::IDLE) {
-    ESP_LOGD(TAG, "Initiating new data collection %d ", this->gain_);
+    ESP_LOGD(TAG, "Initiating new data collection");
 
-    this->state_ = State::WAITING_FOR_DATA;
+    this->state_ = this->automatic_mode_enabled_ ? State::COLLECTING_DATA_AUTO : State::WAITING_FOR_DATA;
 
     this->readings_.ch0 = 0;
     this->readings_.ch1 = 0;
@@ -121,6 +122,8 @@ void LTR303Component::loop() {
     case State::WAITING_FOR_DATA:
       if (this->is_data_ready(this->readings_) == DataAvail::DATA_OK) {
         tries = 0;
+        ESP_LOGD(TAG, "Reading sensor data having gain = %.0fx, time = %d ms",
+                 get_gain_coeff(this->readings_.actual_gain), get_itime_ms(this->readings_.integration_time));
         this->read_sensor_data_(this->readings_);
         this->state_ = State::DATA_COLLECTED;
       } else if (tries >= MAX_TRIES) {
@@ -137,9 +140,8 @@ void LTR303Component::loop() {
     case COLLECTING_DATA_AUTO:
     case DATA_COLLECTED:
       if (this->state_ == State::COLLECTING_DATA_AUTO || this->are_adjustments_required_(this->readings_)) {
-        ESP_LOGD(TAG, "Auto - gain = %.0fx, time = %d ms", get_gain_coeff(this->readings_.actual_gain),
-                 get_itime_ms(this->readings_.integration_time));
         this->state_ = State::ADJUSTMENT_IN_PROGRESS;
+        ESP_LOGD(TAG, "Reconfiguring sensitivity");
         this->configure_integration_time_(this->readings_.integration_time);
         this->configure_gain_(this->readings_.actual_gain);
         // if sensitivity adjustment needed - need to wait for first data samples after setting new parameters
@@ -233,6 +235,7 @@ DataAvail LTR303Component::is_data_ready(Readings &data) {
   }
 
   // data.actual_gain = als_status.gain;
+  ESP_LOGD(TAG, "Data ready, reported gain is %.0f", get_gain_coeff(als_status.gain));
   return DataAvail::DATA_OK;
 }
 
@@ -254,8 +257,8 @@ bool LTR303Component::are_adjustments_required_(Readings &data) {
     return false;
 
   // Recommended thresholds as per datasheet
-  static const uint16_t LOW_INTENSITY_THRESHOLD = 2000;
-  static const uint16_t HIGH_INTENSITY_THRESHOLD = 50000;
+  static const uint16_t LOW_INTENSITY_THRESHOLD = 1000;
+  static const uint16_t HIGH_INTENSITY_THRESHOLD = 20000;
   static const Gain GAINS[GAINS_COUNT] = {GAIN_1, GAIN_2, GAIN_4, GAIN_8, GAIN_48, GAIN_96};
   static const IntegrationTime INT_TIMES[TIMES_COUNT] = {
       INTEGRATION_TIME_50MS,  INTEGRATION_TIME_100MS, INTEGRATION_TIME_150MS, INTEGRATION_TIME_200MS,
@@ -334,6 +337,9 @@ void LTR303Component::apply_lux_calculation_(Readings &data) {
 }
 
 void LTR303Component::publish_data_(Readings &data) {
+  if (this->ambient_light_sensor_ != nullptr) {
+    this->ambient_light_sensor_->publish_state(data.lux);
+  }
   if (this->infrared_counts_sensor_ != nullptr) {
     this->infrared_counts_sensor_->publish_state(data.ch1);
   }
@@ -345,9 +351,6 @@ void LTR303Component::publish_data_(Readings &data) {
   }
   if (this->actual_integration_time_sensor_ != nullptr) {
     this->actual_integration_time_sensor_->publish_state(get_itime_ms(data.integration_time));
-  }
-  if (this->ambient_light_sensor_ != nullptr) {
-    this->ambient_light_sensor_->publish_state(data.lux);
   }
 }
 }  // namespace ltr303
