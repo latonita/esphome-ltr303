@@ -53,7 +53,6 @@ static uint16_t get_meas_time_ms(MeasurementRepeatRate rate) {
 }
 
 static float get_gain_coeff(Gain gain) {
-  ESP_LOGD(TAG, "get gain %d", (uint8_t) gain);
   static const float ALS_GAIN[8] = {1, 2, 4, 8, 0, 0, 48, 96};
   return ALS_GAIN[gain & 0b111];
 }
@@ -138,6 +137,8 @@ void LTR303Component::loop() {
     case COLLECTING_DATA_AUTO:
     case DATA_COLLECTED:
       if (this->state_ == State::COLLECTING_DATA_AUTO || this->are_adjustments_required_(this->readings_)) {
+        ESP_LOGD(TAG, "Auto - gain = %.0fx, time = %d ms", get_gain_coeff(this->readings_.actual_gain),
+                 get_itime_ms(this->readings_.integration_time));
         this->state_ = State::ADJUSTMENT_IN_PROGRESS;
         this->configure_integration_time_(this->readings_.integration_time);
         this->configure_gain_(this->readings_.actual_gain);
@@ -264,28 +265,33 @@ bool LTR303Component::are_adjustments_required_(Readings &data) {
     Gain next_gain = get_next(GAINS, data.actual_gain);
     if (next_gain != data.actual_gain) {
       data.actual_gain = next_gain;
+      ESP_LOGD(TAG, "Low illuminance. Increasing gain.");
       return true;
     }
     IntegrationTime next_time = get_next(INT_TIMES, data.integration_time);
     if (next_time != data.integration_time) {
       data.integration_time = next_time;
+      ESP_LOGD(TAG, "Low illuminance. Increasing integration time.");
       return true;
     }
   } else if (data.ch0 >= HIGH_INTENSITY_THRESHOLD) {
     Gain prev_gain = get_prev(GAINS, data.actual_gain);
     if (prev_gain != data.actual_gain) {
       data.actual_gain = prev_gain;
+      ESP_LOGD(TAG, "High illuminance. Decreasing gain.");
       return true;
     }
     IntegrationTime prev_time = get_prev(INT_TIMES, data.integration_time);
     if (prev_time != data.integration_time) {
       data.integration_time = prev_time;
+      ESP_LOGD(TAG, "High illuminance. Decreasing integration time.");
       return true;
     }
+  } else {
+    ESP_LOGD(TAG, "Illuminance is good enough.");
+    return false;
   }
-
-  // Counts are either good (between thresholds)
-  // or there is no room to change sensitivity anymore
+  ESP_LOGD(TAG, "Can't adjust sensitivity anymore.");
   return false;
 }
 
