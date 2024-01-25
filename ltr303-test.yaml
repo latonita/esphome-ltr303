@@ -28,7 +28,7 @@ sensor:
     address: 0x29
     auto_mode: true
 # gain and time ignored in auto mode
-    gain: X8
+    gain: 1x
     integration_time: 100ms
 
     glass_attenuation_factor: 1.0

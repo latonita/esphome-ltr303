@@ -117,10 +117,11 @@ void LTR303Component::loop() {
       break;
 
     case State::IDLE:
+      // having fun, waiting for work
       break;
 
     case State::WAITING_FOR_DATA:
-      if (this->is_data_ready(this->readings_) == DataAvail::DATA_OK) {
+      if (this->is_data_ready_(this->readings_) == DataAvail::DATA_OK) {
         tries = 0;
         ESP_LOGD(TAG, "Reading sensor data having gain = %.0fx, time = %d ms",
                  get_gain_coeff(this->readings_.actual_gain), get_itime_ms(this->readings_.integration_time));
@@ -137,8 +138,8 @@ void LTR303Component::loop() {
       }
       break;
 
-    case COLLECTING_DATA_AUTO:
-    case DATA_COLLECTED:
+    case State::COLLECTING_DATA_AUTO:
+    case State::DATA_COLLECTED:
       if (this->state_ == State::COLLECTING_DATA_AUTO || this->are_adjustments_required_(this->readings_)) {
         this->state_ = State::ADJUSTMENT_IN_PROGRESS;
         ESP_LOGD(TAG, "Reconfiguring sensitivity");
@@ -158,9 +159,14 @@ void LTR303Component::loop() {
       break;
 
     case State::READY_TO_PUBLISH:
-      this->state_ = State::IDLE;
+      this->publish_data_part_1_(this->readings_);
+      this->state_ = State::KEEP_PUBLISHING;
+      break;
+
+    case State::KEEP_PUBLISHING:
+      this->publish_data_part_2_(this->readings_);
       this->status_clear_warning();
-      this->publish_data_(this->readings_);
+      this->state_ = State::IDLE;
       break;
 
     default:
@@ -172,14 +178,14 @@ void LTR303Component::configure_reset_and_activate_() {
 
   ControlRegister als_ctrl{0};
   als_ctrl.sw_reset = true;
-  this->reg(CommandRegisters::CR_ALS_CTRL) = als_ctrl.raw;
+  this->reg((uint8_t) CommandRegisters::ALS_CTRL) = als_ctrl.raw;
   delay(2);
 
   uint8_t tries = MAX_TRIES;
   do {
     ESP_LOGD(TAG, "Waiting chip to reset");
     delay(2);
-    als_ctrl.raw = this->reg(CommandRegisters::CR_ALS_CTRL).get();
+    als_ctrl.raw = this->reg((uint8_t) CommandRegisters::ALS_CTRL).get();
   } while (als_ctrl.sw_reset && tries--);  // while sw reset bit is on - keep waiting
 
   if (als_ctrl.sw_reset) {
@@ -191,14 +197,14 @@ void LTR303Component::configure_reset_and_activate_() {
   als_ctrl.gain = this->gain_;
 
   ESP_LOGD(TAG, "Setting active mode and gain reg 0x%02X", als_ctrl.raw);
-  this->reg(CommandRegisters::CR_ALS_CTRL) = als_ctrl.raw;
+  this->reg((uint8_t) CommandRegisters::ALS_CTRL) = als_ctrl.raw;
   delay(5);
 
   tries = MAX_TRIES;
   do {
     ESP_LOGD(TAG, "Waiting for device to become active...");
     delay(2);
-    als_ctrl.raw = this->reg(CommandRegisters::CR_ALS_CTRL).get();
+    als_ctrl.raw = this->reg((uint8_t) CommandRegisters::ALS_CTRL).get();
   } while (!als_ctrl.active_mode && tries--);  // while active mode is not set - keep waiting
 
   if (!als_ctrl.active_mode) {
@@ -210,7 +216,7 @@ void LTR303Component::configure_gain_(Gain gain) {
   ControlRegister als_ctrl{0};
   als_ctrl.active_mode = true;
   als_ctrl.gain = gain;
-  this->reg(CommandRegisters::CR_ALS_CTRL) = als_ctrl.raw;
+  this->reg((uint8_t) CommandRegisters::ALS_CTRL) = als_ctrl.raw;
   delay(2);
 }
 
@@ -218,14 +224,14 @@ void LTR303Component::configure_integration_time_(IntegrationTime time) {
   MeasurementRateRegister meas{0};
   meas.measurement_repeat_rate = this->repeat_rate_;
   meas.integration_time = time;
-  this->reg(CommandRegisters::CR_MEAS_RATE) = meas.raw;
+  this->reg((uint8_t) CommandRegisters::MEAS_RATE) = meas.raw;
   delay(2);
 }
 
-DataAvail LTR303Component::is_data_ready(Readings &data) {
+DataAvail LTR303Component::is_data_ready_(Readings &data) {
   StatusRegister als_status{0};
 
-  als_status.raw = this->reg(CommandRegisters::CR_ALS_STATUS).get();
+  als_status.raw = this->reg((uint8_t) CommandRegisters::ALS_STATUS).get();
   if (!als_status.new_data)
     return DataAvail::NO_DATA;
 
@@ -240,10 +246,10 @@ DataAvail LTR303Component::is_data_ready(Readings &data) {
 }
 
 void LTR303Component::read_sensor_data_(Readings &data) {
-  uint8_t ch1_0 = this->reg(CommandRegisters::CR_CH1_0).get();
-  uint8_t ch1_1 = this->reg(CommandRegisters::CR_CH1_1).get();
-  uint8_t ch0_0 = this->reg(CommandRegisters::CR_CH0_0).get();
-  uint8_t ch0_1 = this->reg(CommandRegisters::CR_CH0_1).get();
+  uint8_t ch1_0 = this->reg((uint8_t) CommandRegisters::CH1_0).get();
+  uint8_t ch1_1 = this->reg((uint8_t) CommandRegisters::CH1_1).get();
+  uint8_t ch0_0 = this->reg((uint8_t) CommandRegisters::CH0_0).get();
+  uint8_t ch0_1 = this->reg((uint8_t) CommandRegisters::CH0_1).get();
   data.ch1 = encode_uint16(ch1_1, ch1_0);
   data.ch0 = encode_uint16(ch0_1, ch0_0);
 
@@ -336,7 +342,7 @@ void LTR303Component::apply_lux_calculation_(Readings &data) {
   data.lux = lux;
 }
 
-void LTR303Component::publish_data_(Readings &data) {
+void LTR303Component::publish_data_part_1_(Readings &data) {
   if (this->ambient_light_sensor_ != nullptr) {
     this->ambient_light_sensor_->publish_state(data.lux);
   }
@@ -346,6 +352,9 @@ void LTR303Component::publish_data_(Readings &data) {
   if (this->full_spectrum_counts_sensor_ != nullptr) {
     this->full_spectrum_counts_sensor_->publish_state(data.ch0);
   }
+}
+
+void LTR303Component::publish_data_part_2_(Readings &data) {
   if (this->actual_gain_sensor_ != nullptr) {
     this->actual_gain_sensor_->publish_state(get_gain_coeff(data.actual_gain));
   }

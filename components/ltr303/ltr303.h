@@ -10,16 +10,16 @@ namespace ltr303 {
 
 // https://www.mouser.com/datasheet/2/239/Lite-On_LTR-303ALS-01_DS_ver%201.1-1175269.pdf
 
-enum CommandRegisters : uint8_t {
-  CR_ALS_CTRL = 0x80,   // ALS operation mode control SW reset
-  CR_MEAS_RATE = 0x85,  // ALS measurement rate in active mode
-  CR_PART_ID = 0x86,    // Part Number ID and Revision ID
-  CR_MANU_ID = 0x87,    // Manufacturer ID
-  CR_CH1_0 = 0x88,      // ALS measurement CH1 data, lower byte - infrared only
-  CR_CH1_1 = 0x89,      // ALS measurement CH1 data, upper byte - infrared only
-  CR_CH0_0 = 0x8A,      // ALS measurement CH0 data, lower byte - visible + infrared
-  CR_CH0_1 = 0x8B,      // ALS measurement CH0 data, upper byte - visible + infrared
-  CR_ALS_STATUS = 0x8c  // ALS new data status
+enum class CommandRegisters : uint8_t {
+  ALS_CTRL = 0x80,   // ALS operation mode control SW reset
+  MEAS_RATE = 0x85,  // ALS measurement rate in active mode
+  PART_ID = 0x86,    // Part Number ID and Revision ID
+  MANU_ID = 0x87,    // Manufacturer ID
+  CH1_0 = 0x88,      // ALS measurement CH1 data, lower byte - infrared only
+  CH1_1 = 0x89,      // ALS measurement CH1 data, upper byte - infrared only
+  CH0_0 = 0x8A,      // ALS measurement CH0 data, lower byte - visible + infrared
+  CH0_1 = 0x8B,      // ALS measurement CH0 data, upper byte - visible + infrared
+  ALS_STATUS = 0x8c  // ALS new data status
 };
 
 // Sensor gain levels
@@ -128,7 +128,7 @@ class LTR303Component : public PollingComponent, public i2c::I2CDevice {
   // Internal state machine, used to split all the actions into
   // small steps in loop() to make sure we are not blocking execution
   //
-  enum State : uint8_t {
+  enum class State : uint8_t {
     NOT_INITIALIZED,
     DELAYED_SETUP,
     IDLE,
@@ -136,7 +136,8 @@ class LTR303Component : public PollingComponent, public i2c::I2CDevice {
     COLLECTING_DATA_AUTO,
     DATA_COLLECTED,
     ADJUSTMENT_IN_PROGRESS,
-    READY_TO_PUBLISH
+    READY_TO_PUBLISH,
+    KEEP_PUBLISHING
   } state_{State::NOT_INITIALIZED};
 
   //
@@ -156,11 +157,12 @@ class LTR303Component : public PollingComponent, public i2c::I2CDevice {
   void configure_reset_and_activate_();
   void configure_integration_time_(IntegrationTime time);
   void configure_gain_(Gain gain);
-  DataAvail is_data_ready(Readings &data);
+  DataAvail is_data_ready_(Readings &data);
   void read_sensor_data_(Readings &data);
   bool are_adjustments_required_(Readings &data);
   void apply_lux_calculation_(Readings &data);
-  void publish_data_(Readings &data);
+  void publish_data_part_1_(Readings &data);
+  void publish_data_part_2_(Readings &data);
 
   //
   // Component configuration
