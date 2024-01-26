@@ -17,7 +17,7 @@ logger:
   level: DEBUG
 
 external_components:
-  - source: github://latonita/esphome-ltr303
+  - source: github://latonita/esphome-ltr303@alsps
     components: [ ltr303 ]
 #   - source: github://pr#6076
 #     components: [ltr303]
