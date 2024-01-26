@@ -30,7 +30,13 @@ i2c:
 sensor:
   - platform: ltr303
     address: 0x29
-    auto_mode: true
+    auto_mode: false
+
+# for ltr-553 
+    enable_proximity: true
+    proximity_counts:
+      name: "Proximity counts"    
+
 # gain and time ignored in auto mode
     gain: 1x
     integration_time: 100ms
