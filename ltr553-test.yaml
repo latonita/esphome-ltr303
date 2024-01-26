@@ -24,6 +24,15 @@ sensor:
     update_interval: 30s
     auto_mode: false
     enable_proximity: true
+    proximity_cooldown: 5 s
+    proximity_high_threshold: 590
+    proximity_low_threshold: 5
+    on_high_threshold:
+      then:
+        - logger.log: "Proximity high!                                             !!!!!!!!!!!!!!!!"
+    on_low_threshold:
+      then:
+        - logger.log: "Proximity low high                                          ----------------"
     proximity_counts:
       name: "Proximity counts"    
     # gain and time ignored in auto mode
