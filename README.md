@@ -1,4 +1,4 @@
-Preliminary version of esphome component for LiteOn LTR-303 and LTR-329 light sensors.
+Preliminary version of esphome component for LiteOn LTR-553 light sensor [ALS] and proximity sensor [PS].
 
 Example config:
 ```
@@ -29,7 +29,7 @@ i2c:
 
 sensor:
   - platform: ltr303
-    address: 0x29
+    address: 0x23
     auto_mode: false
 
 # for ltr-553 
