@@ -84,7 +84,7 @@ class LTRAlsPsComponent : public PollingComponent, public i2c::I2CDevice {
   struct AlsReadings {
     uint16_t ch0{0};
     uint16_t ch1{0};
-    AlsGain actual_gain{AlsGain::GAIN_1};
+    AlsGain gain{AlsGain::GAIN_1};
     IntegrationTime integration_time{IntegrationTime::INTEGRATION_TIME_100MS};
     float lux{0.0f};
   } als_readings_;
@@ -102,8 +102,8 @@ class LTRAlsPsComponent : public PollingComponent, public i2c::I2CDevice {
   //
   bool check_part_number_();
 
-  void configure_reset_and_activate_();
-
+  void configure_reset_();
+  void configure_als_();
   void configure_integration_time_(IntegrationTime time);
   void configure_gain_(AlsGain gain);
   DataAvail is_als_data_ready_(AlsReadings &data);
