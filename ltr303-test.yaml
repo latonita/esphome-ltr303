@@ -27,6 +27,8 @@ sensor:
   - platform: ltr_als_ps
     address: 0x29
     auto_mode: true
+    type: ALS   # ALS, PS, ALS_PS
+
 # gain and time ignored in auto mode
     gain: 1x
     integration_time: 100ms
@@ -38,3 +40,16 @@ sensor:
     infrared_counts: Infrared counts
     actual_gain: Actual gain
     actual_integration_time: Actual integration time
+
+# proximity section
+#    ps_cooldown: 3 s
+#    ps_high_threshold: 590
+#    ps_low_threshold: 10
+#    on_ps_high_threshold:
+#      then:
+#        - logger.log: "Proximity high threshold"
+#    on_ps_low_threshold:
+#      then:
+#        - logger.log: "Proximity low threshold"
+#    ps_counts:
+ #     name: "Proximity counts" 
