@@ -1,4 +1,4 @@
-Preliminary version of esphome component for Lite-On TR-303, LTR-329, LTR-553, LTR-556, LTR-559, 
+Preliminary version of esphome component for Lite-On LTR-303, LTR-329, LTR-553, LTR-556, LTR-559, 
 LTR-659 Series of Lite-On Light (ALS) and Proximity(PS) sensors.
 
 PR for official esphome repo still under review https://github.com/esphome/esphome/pull/6076.
